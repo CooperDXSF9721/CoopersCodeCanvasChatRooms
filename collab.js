@@ -15,7 +15,6 @@ const db = firebase.database();
 let currentRoomId = null;
 let linesRef = null;
 let textsRef = null;
-let roomDeletedRef = null;
 
 function generateRoomCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -34,14 +33,6 @@ async function joinRoom(roomId, password = null) {
     
     // Check if room has any data (lines, texts, or password)
     const roomData = roomSnapshot.val();
-    
-    // Check if room was deleted or doesn't exist
-    if (!roomData || roomData.deleted === true) {
-      alert('Room does not exist');
-      joinRoom('public');
-      return;
-    }
-    
     const hasLines = roomData && roomData.lines;
     const hasTexts = roomData && roomData.texts;
     const hasPassword = roomData && roomData.password;
@@ -84,7 +75,6 @@ async function joinRoom(roomId, password = null) {
 
   if (linesRef) linesRef.off();
   if (textsRef) textsRef.off();
-  if (roomDeletedRef) roomDeletedRef.off();
 
   currentRoomId = roomId;
   linesRef = db.ref(`rooms/${roomId}/lines`);
@@ -95,22 +85,9 @@ async function joinRoom(roomId, password = null) {
   drawAll();
 
   setupFirebaseListeners();
-  setupRoomDeletionListener();
   updateRoomIndicator();
 
   window.location.hash = roomId;
-}
-
-function setupRoomDeletionListener() {
-  if (currentRoomId === 'public') return;
-  
-  roomDeletedRef = db.ref(`rooms/${currentRoomId}/deleted`);
-  roomDeletedRef.on('value', snapshot => {
-    if (snapshot.val() === true) {
-      alert('Sorry, this room has been deleted by the owner.');
-      joinRoom('public');
-    }
-  });
 }
 
 function updateRoomIndicator() {
@@ -491,17 +468,10 @@ document.getElementById('copyRoomBtn')?.addEventListener('click', () => {
 
 document.getElementById('deleteRoomBtn')?.addEventListener('click', async () => {
   if (currentRoomId && currentRoomId !== 'public') {
-    const confirmDelete = confirm(`Are you sure you want to delete room ${currentRoomId}? This will kick all users from the room.`);
+    const confirmDelete = confirm(`Are you sure you want to delete room ${currentRoomId}? This action cannot be undone.`);
     if (confirmDelete) {
-      // First, set the deleted flag to kick other users
-      await db.ref(`rooms/${currentRoomId}/deleted`).set(true);
-      
-      // Wait a moment for other users to be kicked
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Then delete the entire room from Firebase
+      // Delete the entire room from Firebase
       await db.ref(`rooms/${currentRoomId}`).remove();
-      
       alert('Room deleted successfully');
       joinRoom('public');
       roomDropdown.classList.remove('show');
