@@ -210,14 +210,17 @@ function setupFirebaseListeners() {
 }
 
 // ==================== Canvas Setup ====================
-const canvas = document.getElementById('drawCanvas');
-const ctx = canvas.getContext('2d');
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-
+let canvas, ctx;
 const linesCache = [];
 const textsCache = new Map();
 const shapesCache = new Map();
+
+function initCanvas() {
+  canvas = document.getElementById('drawCanvas');
+  ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
 
 function drawAll() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -628,11 +631,32 @@ document.getElementById('deleteRoomBtn')?.addEventListener('click', async () => 
   }
 });
 
+// ==================== Initialize ====================
+window.addEventListener('load', () => {
+  // Initialize canvas first
+  initCanvas();
+  
+  // Setup admin
+  setupAdmin();
+  
+  // Join room
+  const hashRoom = window.location.hash.substring(1);
+  if (hashRoom) {
+    joinRoom(hashRoom);
+  } else {
+    joinRoom('public');
+  }
+  
+  // Setup shape menu
+  setupShapeMenu();
+});
+
 // ==================== Admin ====================
-(function setupAdmin() {
+function setupAdmin() {
   const adminKey = "cooper";
   const isAdmin = prompt("Enter admin key to see admin tools (or cancel):") === adminKey;
-  if (isAdmin) {
+  const clearBtn = document.getElementById('clearBtn');
+  if (isAdmin && clearBtn) {
     clearBtn.style.display = 'inline-block';
     clearBtn.addEventListener('click', async () => {
       if (!currentRoomId) return;
@@ -646,20 +670,7 @@ document.getElementById('deleteRoomBtn')?.addEventListener('click', async () => 
       }
     });
   }
-})();
-
-// ==================== Initialize ====================
-window.addEventListener('load', () => {
-  const hashRoom = window.location.hash.substring(1);
-  if (hashRoom) {
-    joinRoom(hashRoom);
-  } else {
-    joinRoom('public');
-  }
-  
-  // Setup shape menu
-  setupShapeMenu();
-});
+}
 
 // ==================== Shape Menu ====================
 function setupShapeMenu() {
