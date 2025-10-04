@@ -25,7 +25,33 @@ function generateRoomCode() {
   return code;
 }
 
-function joinRoom(roomId) {
+async function joinRoom(roomId, password = null) {
+  // Check if room has password protection (skip for public)
+  if (roomId !== 'public') {
+    const passwordRef = db.ref(`rooms/${roomId}/password`);
+    const passwordSnapshot = await passwordRef.once('value');
+    const storedPassword = passwordSnapshot.val();
+    
+    if (storedPassword) {
+      // Room is password protected
+      if (password === null) {
+        // Prompt for password
+        const inputPassword = prompt('This room is password protected. Enter the passkey:');
+        if (!inputPassword) {
+          joinRoom('public');
+          return;
+        }
+        password = inputPassword;
+      }
+      
+      if (password !== storedPassword) {
+        alert('Incorrect Passkey');
+        joinRoom('public');
+        return;
+      }
+    }
+  }
+  
   if (linesRef) linesRef.off();
   if (textsRef) textsRef.off();
   
@@ -46,22 +72,22 @@ function joinRoom(roomId) {
 function updateRoomIndicator() {
   const indicator = document.getElementById('roomIndicator');
   const menuBtn = document.getElementById('roomMenuBtn');
-  const displayEl = document.getElementById('currentRoomDisplay');
+  const roomCodeDisplay = document.getElementById('roomCodeDisplay');
   
   if (indicator && currentRoomId) {
     if (currentRoomId === 'public') {
       indicator.textContent = 'Public Canvas';
       menuBtn?.classList.add('public');
-      if (displayEl) {
-        displayEl.textContent = 'PUBLIC';
-        displayEl.style.color = 'hsl(220, 90%, 56%)';
+      if (roomCodeDisplay) {
+        roomCodeDisplay.textContent = 'You are on the public canvas';
+        roomCodeDisplay.style.fontFamily = 'Inter, system-ui, sans-serif';
       }
     } else {
       indicator.textContent = currentRoomId;
       menuBtn?.classList.remove('public');
-      if (displayEl) {
-        displayEl.textContent = currentRoomId;
-        displayEl.style.color = 'hsl(142, 76%, 55%)';
+      if (roomCodeDisplay) {
+        roomCodeDisplay.textContent = currentRoomId;
+        roomCodeDisplay.style.fontFamily = "'JetBrains Mono', 'Courier New', monospace";
       }
     }
   }
@@ -377,37 +403,22 @@ document.addEventListener('click', (e) => {
 
 document.getElementById('createRoomBtn')?.addEventListener('click', async () => {
   const roomId = generateRoomCode();
+  const password = prompt('Set a passkey for this room (optional - leave blank for no password):');
   
-  // Write initial data to mark room as created
-  try {
-    await db.ref(`rooms/${roomId}/created`).set(Date.now());
-    joinRoom(roomId);
-    roomDropdown.classList.remove('show');
-  } catch (error) {
-    console.error('Error creating room:', error);
-    alert('Error creating room. Please try again.');
+  if (password && password.trim()) {
+    // Save password to Firebase
+    await db.ref(`rooms/${roomId}/password`).set(password.trim());
   }
+  
+  joinRoom(roomId);
+  roomDropdown.classList.remove('show');
 });
 
-document.getElementById('joinRoomBtn')?.addEventListener('click', async () => {
+document.getElementById('joinRoomBtn')?.addEventListener('click', () => {
   const roomId = document.getElementById('roomCodeInput').value.trim().toUpperCase();
   if (roomId) {
-    // Check if room exists before joining
-    try {
-      const roomRef = db.ref(`rooms/${roomId}`);
-      const snapshot = await roomRef.once('value');
-      
-      if (snapshot.exists()) {
-        joinRoom(roomId);
-        roomDropdown.classList.remove('show');
-        document.getElementById('roomCodeInput').value = '';
-      } else {
-        alert('Invalid Room Code - This room does not exist yet. Please create a new room or enter a valid room code.');
-      }
-    } catch (error) {
-      console.error('Error checking room:', error);
-      alert('Error checking room. Please try again.');
-    }
+    joinRoom(roomId);
+    roomDropdown.classList.remove('show');
   }
 });
 
@@ -417,7 +428,7 @@ document.getElementById('goPublicBtn')?.addEventListener('click', () => {
 });
 
 document.getElementById('copyRoomBtn')?.addEventListener('click', () => {
-  if (currentRoomId) {
+  if (currentRoomId && currentRoomId !== 'public') {
     navigator.clipboard.writeText(currentRoomId);
     const btn = document.getElementById('copyRoomBtn');
     const originalText = btn.textContent;
