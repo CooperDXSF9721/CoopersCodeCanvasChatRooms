@@ -45,9 +45,15 @@ function joinRoom(roomId) {
 
 function updateRoomIndicator() {
   const indicator = document.getElementById('roomIndicator');
+  const menuBtn = document.getElementById('roomMenuBtn');
   if (indicator && currentRoomId) {
-    indicator.textContent = `Room: ${currentRoomId}`;
-    indicator.style.display = 'inline-block';
+    if (currentRoomId === 'public') {
+      indicator.textContent = 'Public Canvas';
+      menuBtn?.classList.add('public');
+    } else {
+      indicator.textContent = currentRoomId;
+      menuBtn?.classList.remove('public');
+    }
   }
 }
 
@@ -346,37 +352,46 @@ addTextBtn.addEventListener('click', () => {
 });
 
 // ==================== Room UI ====================
+const roomDropdown = document.getElementById('roomDropdown');
+const roomMenuBtn = document.getElementById('roomMenuBtn');
+
+roomMenuBtn?.addEventListener('click', () => {
+  roomDropdown.classList.toggle('show');
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.room-menu-container')) {
+    roomDropdown?.classList.remove('show');
+  }
+});
+
 document.getElementById('createRoomBtn')?.addEventListener('click', () => {
   const roomId = generateRoomCode();
   joinRoom(roomId);
-  document.getElementById('roomModal').style.display = 'none';
+  roomDropdown.classList.remove('show');
 });
 
 document.getElementById('joinRoomBtn')?.addEventListener('click', () => {
   const roomId = document.getElementById('roomCodeInput').value.trim().toUpperCase();
   if (roomId) {
     joinRoom(roomId);
-    document.getElementById('roomModal').style.display = 'none';
+    roomDropdown.classList.remove('show');
   }
+});
+
+document.getElementById('goPublicBtn')?.addEventListener('click', () => {
+  joinRoom('public');
+  roomDropdown.classList.remove('show');
 });
 
 document.getElementById('copyRoomBtn')?.addEventListener('click', () => {
   if (currentRoomId) {
     navigator.clipboard.writeText(currentRoomId);
-    alert('Room code copied to clipboard!');
+    const btn = document.getElementById('copyRoomBtn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = originalText, 1500);
   }
-});
-
-document.getElementById('leaveRoomBtn')?.addEventListener('click', () => {
-  if (linesRef) linesRef.off();
-  if (textsRef) textsRef.off();
-  currentRoomId = null;
-  linesCache.length = 0;
-  textsCache.clear();
-  drawAll();
-  window.location.hash = '';
-  document.getElementById('roomModal').style.display = 'flex';
-  document.getElementById('roomIndicator').style.display = 'none';
 });
 
 // ==================== Admin ====================
@@ -404,8 +419,7 @@ window.addEventListener('load', () => {
   const hashRoom = window.location.hash.substring(1);
   if (hashRoom) {
     joinRoom(hashRoom);
-    document.getElementById('roomModal').style.display = 'none';
   } else {
-    document.getElementById('roomModal').style.display = 'flex';
+    joinRoom('public');
   }
 });
