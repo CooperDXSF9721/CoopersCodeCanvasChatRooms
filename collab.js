@@ -217,9 +217,22 @@ const shapesCache = new Map();
 
 function initCanvas() {
   canvas = document.getElementById('drawCanvas');
+  if (!canvas) {
+    console.error('Canvas element not found!');
+    return;
+  }
   ctx = canvas.getContext('2d');
+  
+  // Force full screen
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
+  canvas.style.width = '100vw';
+  canvas.style.height = '100vh';
+  canvas.style.position = 'absolute';
+  canvas.style.top = '0';
+  canvas.style.left = '0';
+  
+  console.log('Canvas initialized:', canvas.width, 'x', canvas.height);
 }
 
 function drawAll() {
@@ -653,10 +666,16 @@ window.addEventListener('load', () => {
 
 // ==================== Admin ====================
 function setupAdmin() {
-  const adminKey = "cooper";
-  const isAdmin = prompt("Enter admin key to see admin tools (or cancel):") === adminKey;
   const clearBtn = document.getElementById('clearBtn');
-  if (isAdmin && clearBtn) {
+  if (!clearBtn) {
+    console.error('Clear button not found');
+    return;
+  }
+  
+  const adminKey = "cooper";
+  const userInput = prompt("Enter admin key to see admin tools (or cancel):");
+  
+  if (userInput === adminKey) {
     clearBtn.style.display = 'inline-block';
     clearBtn.addEventListener('click', async () => {
       if (!currentRoomId) return;
