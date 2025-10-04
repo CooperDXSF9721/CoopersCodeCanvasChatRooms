@@ -26,8 +26,29 @@ function generateRoomCode() {
 }
 
 async function joinRoom(roomId, password = null) {
-  // Check if room has password protection (skip for public)
+  // Check if room exists (skip for public)
   if (roomId !== 'public') {
+    const roomRef = db.ref(`rooms/${roomId}`);
+    const roomSnapshot = await roomRef.once('value');
+    
+    // Check if room has any data (lines, texts, or password)
+    const roomData = roomSnapshot.val();
+    const hasLines = roomData && roomData.lines;
+    const hasTexts = roomData && roomData.texts;
+    const hasPassword = roomData && roomData.password;
+    
+    // If room has been explicitly created (has password) or has content, it exists
+    // Otherwise, treat it as a new room
+    const roomExists = hasPassword || hasLines || hasTexts;
+    
+    if (!roomExists && roomData === null) {
+      // Room doesn't exist at all
+      alert('Room does not exist');
+      joinRoom('public');
+      return;
+    }
+    
+    // Check password protection
     const passwordRef = db.ref(`rooms/${roomId}/password`);
     const passwordSnapshot = await passwordRef.once('value');
     const storedPassword = passwordSnapshot.val();
@@ -73,6 +94,8 @@ function updateRoomIndicator() {
   const indicator = document.getElementById('roomIndicator');
   const menuBtn = document.getElementById('roomMenuBtn');
   const roomCodeDisplay = document.getElementById('roomCodeDisplay');
+  const deleteBtn = document.getElementById('deleteRoomBtn');
+  const copyBtn = document.getElementById('copyRoomBtn');
   
   if (indicator && currentRoomId) {
     if (currentRoomId === 'public') {
@@ -82,6 +105,9 @@ function updateRoomIndicator() {
         roomCodeDisplay.textContent = 'You are on the public canvas';
         roomCodeDisplay.style.fontFamily = 'Inter, system-ui, sans-serif';
       }
+      // Hide delete and copy buttons on public canvas
+      if (deleteBtn) deleteBtn.style.display = 'none';
+      if (copyBtn) copyBtn.style.display = 'none';
     } else {
       indicator.textContent = currentRoomId;
       menuBtn?.classList.remove('public');
@@ -89,6 +115,9 @@ function updateRoomIndicator() {
         roomCodeDisplay.textContent = currentRoomId;
         roomCodeDisplay.style.fontFamily = "'JetBrains Mono', 'Courier New', monospace";
       }
+      // Show delete and copy buttons on private rooms
+      if (deleteBtn) deleteBtn.style.display = 'block';
+      if (copyBtn) copyBtn.style.display = 'block';
     }
   }
 }
@@ -434,6 +463,19 @@ document.getElementById('copyRoomBtn')?.addEventListener('click', () => {
     const originalText = btn.textContent;
     btn.textContent = 'Copied!';
     setTimeout(() => btn.textContent = originalText, 1500);
+  }
+});
+
+document.getElementById('deleteRoomBtn')?.addEventListener('click', async () => {
+  if (currentRoomId && currentRoomId !== 'public') {
+    const confirmDelete = confirm(`Are you sure you want to delete room ${currentRoomId}? This action cannot be undone.`);
+    if (confirmDelete) {
+      // Delete the entire room from Firebase
+      await db.ref(`rooms/${currentRoomId}`).remove();
+      alert('Room deleted successfully');
+      joinRoom('public');
+      roomDropdown.classList.remove('show');
+    }
   }
 });
 
