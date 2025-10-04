@@ -1,4 +1,3 @@
-
 // ==================== Firebase Config ====================
 const firebaseConfig = {
   apiKey: "AIzaSyBUfT7u7tthl3Nm-ePsY7XWrdLK7YNoLVQ",
@@ -12,31 +11,120 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+// ==================== Room Management ====================
+let currentRoomId = null;
+let linesRef = null;
+let textsRef = null;
+
+function generateRoomCode() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+function joinRoom(roomId) {
+  if (linesRef) linesRef.off();
+  if (textsRef) textsRef.off();
+  
+  currentRoomId = roomId;
+  linesRef = db.ref(`rooms/${roomId}/lines`);
+  textsRef = db.ref(`rooms/${roomId}/texts`);
+  
+  linesCache.length = 0;
+  textsCache.clear();
+  drawAll();
+  
+  setupFirebaseListeners();
+  updateRoomIndicator();
+  
+  window.location.hash = roomId;
+}
+
+function updateRoomIndicator() {
+  const indicator = document.getElementById('roomIndicator');
+  if (indicator && currentRoomId) {
+    indicator.textContent = `Room: ${currentRoomId}`;
+    indicator.style.display = 'inline-block';
+  }
+}
+
+function setupFirebaseListeners() {
+  linesRef.on('child_added', snapshot => {
+    const line = snapshot.val();
+    linesCache.push(line);
+    line.points.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, line.width / 2, 0, Math.PI * 2);
+      if (line.erase) { 
+        ctx.globalCompositeOperation = 'destination-out'; 
+        ctx.fillStyle = 'rgba(0,0,0,1)'; 
+      } else { 
+        ctx.globalCompositeOperation = 'source-over'; 
+        ctx.fillStyle = line.color; 
+      }
+      ctx.fill();
+    });
+    ctx.globalCompositeOperation = 'source-over';
+  });
+
+  linesRef.on('value', snapshot => {
+    if (!snapshot.exists()) {
+      linesCache.length = 0;
+      drawAll();
+    }
+  });
+
+  textsRef.on('child_added', snapshot => {
+    const key = snapshot.key;
+    const val = snapshot.val();
+    textsCache.set(key, val);
+    drawAll();
+  });
+
+  textsRef.on('child_changed', snapshot => {
+    const key = snapshot.key;
+    const val = snapshot.val();
+    textsCache.set(key, val);
+    drawAll();
+  });
+
+  textsRef.on('child_removed', snapshot => {
+    const key = snapshot.key;
+    textsCache.delete(key);
+    drawAll();
+  });
+}
+
 // ==================== Canvas Setup ====================
 const canvas = document.getElementById('drawCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-// Caches for redraws
 const linesCache = [];
-const textsCache = new Map(); // key -> { x, y, text, size, color }
+const textsCache = new Map();
 
 function drawAll() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  // Draw lines
   linesCache.forEach(line => {
     const { points, color, width, erase } = line;
     points.forEach(p => {
       ctx.beginPath();
       ctx.arc(p.x, p.y, width/2, 0, Math.PI*2);
-      if (erase) { ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = 'rgba(0,0,0,1)'; }
-      else { ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = color; }
+      if (erase) { 
+        ctx.globalCompositeOperation = 'destination-out'; 
+        ctx.fillStyle = 'rgba(0,0,0,1)'; 
+      } else { 
+        ctx.globalCompositeOperation = 'source-over'; 
+        ctx.fillStyle = color; 
+      }
       ctx.fill();
     });
   });
   ctx.globalCompositeOperation = 'source-over';
-  // Draw texts
   ctx.textBaseline = 'top';
   textsCache.forEach(obj => {
     const size = obj.size || 40;
@@ -62,7 +150,6 @@ let drawing = false;
 let current = { x: 0, y: 0 };
 let eraserActive = false;
 
-// ==================== Draw Line ====================
 function drawLineSmooth(x0, y0, x1, y1, color = brushColor, width = brushSize, erase = false) {
   const points = [];
   const dx = x1 - x0;
@@ -125,7 +212,7 @@ function scheduleDragUpdate() {
     const local = textsCache.get(draggingTextKey);
     if (local) { local.x = x; local.y = y; }
     drawAll();
-    db.ref(`texts/${draggingTextKey}`).update({ x, y });
+    textsRef.child(draggingTextKey).update({ x, y });
   });
 }
 
@@ -148,18 +235,17 @@ function drawMove(x, y) {
   }
   if (!drawing) return;
   const points = drawLineSmooth(current.x, current.y, x, y, brushColor, brushSize, eraserActive);
-  // If erasing, check contact with text and remove any hit text objects
   if (eraserActive && points && points.length) {
     const removed = new Set();
     points.forEach(p => {
       const hit = textAtPoint(p.x, p.y);
       if (hit && !removed.has(hit.key)) {
         removed.add(hit.key);
-        db.ref(`texts/${hit.key}`).remove();
+        textsRef.child(hit.key).remove();
       }
     });
   }
-  db.ref('lines').push({ points, color: brushColor, width: brushSize, erase: eraserActive });
+  linesRef.push({ points, color: brushColor, width: brushSize, erase: eraserActive });
   current.x = x;
   current.y = y;
 }
@@ -171,66 +257,29 @@ function handlePointerUp() {
   dragRAFQueued = false;
 }
 
-// Mouse
 canvas.addEventListener('mousedown', e => handlePointerDown(e.clientX, e.clientY));
 canvas.addEventListener('mouseup', () => handlePointerUp());
 canvas.addEventListener('mouseout', () => handlePointerUp());
 canvas.addEventListener('mousemove', e => drawMove(e.clientX, e.clientY));
 
-// Touch
-canvas.addEventListener('touchstart', e => { e.preventDefault(); const t = e.touches[0]; handlePointerDown(t.clientX, t.clientY); });
-canvas.addEventListener('touchend', e => { e.preventDefault(); handlePointerUp(); });
-canvas.addEventListener('touchmove', e => { e.preventDefault(); const t = e.touches[0]; drawMove(t.clientX, t.clientY); });
-
-// ==================== Firebase Listeners ====================
-const linesRef = db.ref('lines');
-const textsRef = db.ref('texts');
-
-linesRef.on('child_added', snapshot => {
-  const line = snapshot.val();
-  linesCache.push(line);
-  // Incremental draw for low latency
-  line.points.forEach(p => {
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, line.width / 2, 0, Math.PI * 2);
-    if (line.erase) { ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = 'rgba(0,0,0,1)'; }
-    else { ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = line.color; }
-    ctx.fill();
-  });
-  ctx.globalCompositeOperation = 'source-over';
+canvas.addEventListener('touchstart', e => { 
+  e.preventDefault(); 
+  const t = e.touches[0]; 
+  handlePointerDown(t.clientX, t.clientY); 
 });
-
-linesRef.on('value', snapshot => {
-  if (!snapshot.exists()) {
-    linesCache.length = 0;
-    drawAll();
-  }
+canvas.addEventListener('touchend', e => { 
+  e.preventDefault(); 
+  handlePointerUp(); 
 });
-
-textsRef.on('child_added', snapshot => {
-  const key = snapshot.key;
-  const val = snapshot.val();
-  textsCache.set(key, val);
-  drawAll();
-});
-
-textsRef.on('child_changed', snapshot => {
-  const key = snapshot.key;
-  const val = snapshot.val();
-  textsCache.set(key, val);
-  drawAll();
-});
-
-textsRef.on('child_removed', snapshot => {
-  const key = snapshot.key;
-  textsCache.delete(key);
-  drawAll();
+canvas.addEventListener('touchmove', e => { 
+  e.preventDefault(); 
+  const t = e.touches[0]; 
+  drawMove(t.clientX, t.clientY); 
 });
 
 // ==================== UI Controls ====================
 const colorPicker = document.getElementById('colorPicker');
 const sizePicker = document.getElementById('sizePicker');
-// Allow brush size up to 200px (was 50); reinforce at runtime
 if (sizePicker) {
   sizePicker.max = '200';
   sizePicker.setAttribute('max', '200');
@@ -240,7 +289,6 @@ const clearBtn = document.getElementById('clearBtn');
 const freeTextInput = document.getElementById('freeTextInput');
 const addTextBtn = document.getElementById('addTextBtn');
 
-// Ensure a text size picker exists (for text objects)
 let textSizePicker = document.getElementById('textSizePicker');
 if (!textSizePicker) {
   const toolbarEl = document.getElementById('toolbar') || document.body;
@@ -252,7 +300,6 @@ if (!textSizePicker) {
   textSizePicker.value = '40';
   textSizePicker.title = 'Text size (px)';
   textSizePicker.style.width = '70px';
-  // Insert before Add Text button when possible
   if (toolbarEl && addTextBtn && addTextBtn.parentElement === toolbarEl) {
     toolbarEl.insertBefore(textSizePicker, addTextBtn);
   } else if (toolbarEl) {
@@ -274,7 +321,6 @@ colorPicker.addEventListener('change', e => {
   eraserBtn.style.backgroundColor = '';
 });
 
-// Update brush size immediately while typing and on commit
 const updateBrushSize = (raw) => {
   const val = parseInt(raw, 10);
   if (!Number.isNaN(val)) {
@@ -289,10 +335,9 @@ eraserBtn.addEventListener('click', () => {
   eraserBtn.style.backgroundColor = eraserActive ? 'orange' : '';
 });
 
-// Add Text
 addTextBtn.addEventListener('click', () => {
   const content = (freeTextInput.value || '').trim();
-  if (!content) return;
+  if (!content || !currentRoomId) return;
   const size = getTextSize();
   const x = current.x || canvas.width / 2;
   const y = current.y || canvas.height / 2;
@@ -300,22 +345,67 @@ addTextBtn.addEventListener('click', () => {
   freeTextInput.value = '';
 });
 
+// ==================== Room UI ====================
+document.getElementById('createRoomBtn')?.addEventListener('click', () => {
+  const roomId = generateRoomCode();
+  joinRoom(roomId);
+  document.getElementById('roomModal').style.display = 'none';
+});
+
+document.getElementById('joinRoomBtn')?.addEventListener('click', () => {
+  const roomId = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+  if (roomId) {
+    joinRoom(roomId);
+    document.getElementById('roomModal').style.display = 'none';
+  }
+});
+
+document.getElementById('copyRoomBtn')?.addEventListener('click', () => {
+  if (currentRoomId) {
+    navigator.clipboard.writeText(currentRoomId);
+    alert('Room code copied to clipboard!');
+  }
+});
+
+document.getElementById('leaveRoomBtn')?.addEventListener('click', () => {
+  if (linesRef) linesRef.off();
+  if (textsRef) textsRef.off();
+  currentRoomId = null;
+  linesCache.length = 0;
+  textsCache.clear();
+  drawAll();
+  window.location.hash = '';
+  document.getElementById('roomModal').style.display = 'flex';
+  document.getElementById('roomIndicator').style.display = 'none';
+});
+
 // ==================== Admin ====================
 (function setupAdmin() {
   const adminKey = "cooper";
-  const isAdmin = prompt("Enter admin key to see admin tools:") === adminKey;
+  const isAdmin = prompt("Enter admin key to see admin tools (or cancel):") === adminKey;
   if (isAdmin) {
     clearBtn.style.display = 'inline-block';
     clearBtn.addEventListener('click', async () => {
+      if (!currentRoomId) return;
       try {
         await Promise.all([
-          db.ref('lines').remove(),
-          db.ref('texts').remove()
+          linesRef.remove(),
+          textsRef.remove()
         ]);
-        // Listeners will clear caches and redraw. If rules block removes, this may no-op.
       } catch (err) {
         console.error('Failed to clear canvas data:', err);
       }
     });
   }
 })();
+
+// ==================== Initialize ====================
+window.addEventListener('load', () => {
+  const hashRoom = window.location.hash.substring(1);
+  if (hashRoom) {
+    joinRoom(hashRoom);
+    document.getElementById('roomModal').style.display = 'none';
+  } else {
+    document.getElementById('roomModal').style.display = 'flex';
+  }
+});
