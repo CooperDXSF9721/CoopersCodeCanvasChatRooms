@@ -375,10 +375,18 @@ document.addEventListener('click', (e) => {
   }
 });
 
-document.getElementById('createRoomBtn')?.addEventListener('click', () => {
+document.getElementById('createRoomBtn')?.addEventListener('click', async () => {
   const roomId = generateRoomCode();
-  joinRoom(roomId);
-  roomDropdown.classList.remove('show');
+  
+  // Write initial data to mark room as created
+  try {
+    await db.ref(`rooms/${roomId}/created`).set(Date.now());
+    joinRoom(roomId);
+    roomDropdown.classList.remove('show');
+  } catch (error) {
+    console.error('Error creating room:', error);
+    alert('Error creating room. Please try again.');
+  }
 });
 
 document.getElementById('joinRoomBtn')?.addEventListener('click', async () => {
