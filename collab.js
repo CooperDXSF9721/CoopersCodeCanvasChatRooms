@@ -15,6 +15,8 @@ const db = firebase.database();
 let currentRoomId = null;
 let linesRef = null;
 let textsRef = null;
+let roomExistenceRef = null;
+let isDeleting = false;
 
 function generateRoomCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -75,6 +77,7 @@ async function joinRoom(roomId, password = null) {
   
   if (linesRef) linesRef.off();
   if (textsRef) textsRef.off();
+  if (roomExistenceRef) roomExistenceRef.off();
   
   currentRoomId = roomId;
   linesRef = db.ref(`rooms/${roomId}/lines`);
@@ -85,6 +88,7 @@ async function joinRoom(roomId, password = null) {
   drawAll();
   
   setupFirebaseListeners();
+  setupRoomExistenceListener();
   updateRoomIndicator();
   
   window.location.hash = roomId;
