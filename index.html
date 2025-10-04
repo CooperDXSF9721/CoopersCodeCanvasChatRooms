@@ -209,6 +209,19 @@
       color: hsl(217, 10%, 90%);
     }
 
+    #roomCodeDisplay {
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
+      font-size: 18px;
+      font-weight: 600;
+      color: hsl(220, 90%, 56%);
+      padding: 12px;
+      background: hsl(217, 20%, 20%);
+      border-radius: 8px;
+      text-align: center;
+      margin-bottom: 8px;
+      letter-spacing: 0.05em;
+    }
+
     .dropdown-section input {
       width: 100%;
       padding: 8px 12px;
@@ -304,6 +317,7 @@
     <div id="roomDropdown" data-testid="dropdown-room">
       <div class="dropdown-section">
         <h3>Current Room</h3>
+        <div id="roomCodeDisplay">PUBLIC</div>
         <button id="copyRoomBtn" class="secondary" data-testid="button-copy-room">Copy Room Code</button>
         <button id="goPublicBtn" class="secondary" data-testid="button-go-public">Go to Public Canvas</button>
       </div>
