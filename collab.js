@@ -34,6 +34,14 @@ async function joinRoom(roomId, password = null) {
     
     // Check if room has any data (lines, texts, or password)
     const roomData = roomSnapshot.val();
+    
+    // Check if room was deleted or doesn't exist
+    if (!roomData || roomData.deleted === true) {
+      alert('Room does not exist');
+      joinRoom('public');
+      return;
+    }
+    
     const hasLines = roomData && roomData.lines;
     const hasTexts = roomData && roomData.texts;
     const hasPassword = roomData && roomData.password;
