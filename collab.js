@@ -46,13 +46,23 @@ function joinRoom(roomId) {
 function updateRoomIndicator() {
   const indicator = document.getElementById('roomIndicator');
   const menuBtn = document.getElementById('roomMenuBtn');
+  const displayEl = document.getElementById('currentRoomDisplay');
+  
   if (indicator && currentRoomId) {
     if (currentRoomId === 'public') {
       indicator.textContent = 'Public Canvas';
       menuBtn?.classList.add('public');
+      if (displayEl) {
+        displayEl.textContent = 'PUBLIC';
+        displayEl.style.color = 'hsl(220, 90%, 56%)';
+      }
     } else {
       indicator.textContent = currentRoomId;
       menuBtn?.classList.remove('public');
+      if (displayEl) {
+        displayEl.textContent = currentRoomId;
+        displayEl.style.color = 'hsl(142, 76%, 55%)';
+      }
     }
   }
 }
@@ -371,11 +381,25 @@ document.getElementById('createRoomBtn')?.addEventListener('click', () => {
   roomDropdown.classList.remove('show');
 });
 
-document.getElementById('joinRoomBtn')?.addEventListener('click', () => {
+document.getElementById('joinRoomBtn')?.addEventListener('click', async () => {
   const roomId = document.getElementById('roomCodeInput').value.trim().toUpperCase();
   if (roomId) {
-    joinRoom(roomId);
-    roomDropdown.classList.remove('show');
+    // Check if room exists before joining
+    try {
+      const roomRef = db.ref(`rooms/${roomId}`);
+      const snapshot = await roomRef.once('value');
+      
+      if (snapshot.exists()) {
+        joinRoom(roomId);
+        roomDropdown.classList.remove('show');
+        document.getElementById('roomCodeInput').value = '';
+      } else {
+        alert('Invalid Room Code - This room does not exist yet. Please create a new room or enter a valid room code.');
+      }
+    } catch (error) {
+      console.error('Error checking room:', error);
+      alert('Error checking room. Please try again.');
+    }
   }
 });
 
