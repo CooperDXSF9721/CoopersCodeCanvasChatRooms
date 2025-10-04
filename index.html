@@ -1,0 +1,40 @@
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Collaborative Canvas</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #fff; }
+      #toolbar {
+        position: fixed; bottom: 10px; left: 10px; right: 10px; z-index: 1000;
+        display: flex; gap: 10px; align-items: center; padding: 8px;
+        background: rgba(255,255,255,0.9); border: 1px solid #ddd; border-radius: 8px;
+      }
+      #drawCanvas { display: block; width: 100vw; height: 100vh; }
+      #sizePicker { width: 70px; }
+      #eraserBtn { padding: 6px 10px; }
+      #clearBtn { padding: 6px 10px; display: none; }
+    </style>
+  </head>
+  <body>
+    <canvas id="drawCanvas"></canvas>
+
+    <div id="toolbar">
+      <label>Color <input id="colorPicker" type="color" value="#000000" /></label>
+      <label>Size <input id="sizePicker" type="number" min="1" max="50" value="4" /></label>
+      <input id="freeTextInput" type="text" placeholder="Type text…" style="min-width:160px" />
+      <button id="addTextBtn" type="button">Add Text</button>
+      <button id="eraserBtn" type="button">Eraser</button>
+      <button id="clearBtn" type="button">Clear All (Admin)</button>
+    </div>
+
+    <!-- Firebase v8 CDN -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <!-- App script -->
+    <script src="./collab.js"></script>
+  </body>
+</html>
