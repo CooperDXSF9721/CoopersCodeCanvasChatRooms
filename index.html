@@ -281,6 +281,139 @@
       margin: 16px 0;
     }
 
+    /* Shape Menu Styles */
+    .shape-menu-container {
+      position: fixed;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 1000;
+    }
+
+    #shapeMenuBtn {
+      background: hsl(217, 25%, 16%);
+      border: 1px solid hsl(217, 22%, 18%);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0px 10px 20px -4px hsl(0 0% 0% / 0.45);
+      cursor: pointer;
+      font-size: 20px;
+      width: 48px;
+      height: 48px;
+      transition: all 150ms;
+    }
+
+    #shapeMenuBtn:hover {
+      background: hsl(217, 25%, 18%);
+    }
+
+    #shapeMenu {
+      position: absolute;
+      left: calc(100% + 8px);
+      top: 0;
+      background: hsl(217, 25%, 16%);
+      border: 1px solid hsl(217, 22%, 20%);
+      border-radius: 12px;
+      padding: 16px;
+      min-width: 300px;
+      box-shadow: 0px 30px 60px -12px hsl(0 0% 0% / 0.60);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(-8px);
+      transition: all 200ms ease-out;
+    }
+
+    #shapeMenu.show {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(0);
+    }
+
+    .shape-section {
+      margin-bottom: 16px;
+    }
+
+    .shape-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .shape-section h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: hsl(217, 10%, 90%);
+    }
+
+    .shape-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .shape-btn {
+      aspect-ratio: 1;
+      background: hsl(217, 20%, 20%);
+      border: 2px solid hsl(217, 20%, 25%);
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      transition: all 150ms;
+      padding: 8px;
+    }
+
+    .shape-btn:hover {
+      background: hsl(217, 20%, 24%);
+      border-color: hsl(220, 90%, 56%);
+    }
+
+    .shape-btn.selected {
+      background: hsl(220, 90%, 56%);
+      border-color: hsl(220, 90%, 56%);
+    }
+
+    .shape-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .shape-control-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .shape-control-row label {
+      font-size: 12px;
+      color: hsl(217, 10%, 80%);
+      min-width: 60px;
+    }
+
+    .shape-control-row input[type="color"] {
+      width: 50px;
+      height: 32px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .shape-control-row input[type="number"] {
+      flex: 1;
+      padding: 6px 10px;
+      background: hsl(217, 20%, 20%);
+      border: 1px solid hsl(217, 20%, 35%);
+      border-radius: 6px;
+      color: hsl(217, 10%, 92%);
+      font-size: 14px;
+    }
+
     @media (max-width: 768px) {
       #toolbar {
         top: auto;
@@ -301,6 +434,24 @@
         min-width: 280px;
         bottom: calc(100% + 8px);
         top: auto;
+      }
+
+      .shape-menu-container {
+        left: 16px;
+        top: auto;
+        bottom: 120px;
+        transform: none;
+      }
+
+      #shapeMenu {
+        left: 0;
+        top: auto;
+        bottom: calc(100% + 8px);
+        transform: translateY(8px);
+      }
+
+      #shapeMenu.show {
+        transform: translateY(0);
       }
     }
   </style>
@@ -345,8 +496,51 @@
     </div>
   </div>
 
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-  <script src="collab.js"></script>
-</body>
-</html>
+  <div class="shape-menu-container">
+    <div id="shapeMenuBtn" title="Shapes">⬡</div>
+    <div id="shapeMenu">
+      <div class="shape-section">
+        <h3>Filled Shapes</h3>
+        <div class="shape-grid">
+          <div class="shape-btn" data-shape="circle" data-hollow="false" title="Circle">●</div>
+          <div class="shape-btn" data-shape="square" data-hollow="false" title="Square">■</div>
+          <div class="shape-btn" data-shape="triangle" data-hollow="false" title="Triangle">▲</div>
+          <div class="shape-btn" data-shape="star" data-hollow="false" title="Star">★</div>
+          <div class="shape-btn" data-shape="heart" data-hollow="false" title="Heart">♥</div>
+          <div class="shape-btn" data-shape="hexagon" data-hollow="false" title="Hexagon">⬡</div>
+          <div class="shape-btn" data-shape="flower" data-hollow="false" title="Flower">✿</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="shape-section">
+        <h3>Hollow Shapes</h3>
+        <div class="shape-grid">
+          <div class="shape-btn" data-shape="circle" data-hollow="true" title="Hollow Circle">○</div>
+          <div class="shape-btn" data-shape="square" data-hollow="true" title="Hollow Square">□</div>
+          <div class="shape-btn" data-shape="triangle" data-hollow="true" title="Hollow Triangle">△</div>
+          <div class="shape-btn" data-shape="star" data-hollow="true" title="Hollow Star">☆</div>
+          <div class="shape-btn" data-shape="heart" data-hollow="true" title="Hollow Heart">♡</div>
+          <div class="shape-btn" data-shape="hexagon" data-hollow="true" title="Hollow Hexagon">⬢</div>
+          <div class="shape-btn" data-shape="flower" data-hollow="true" title="Hollow Flower">❀</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="shape-section">
+        <h3>Shape Settings</h3>
+        <div class="shape-controls">
+          <div class="shape-control-row">
+            <label>Color:</label>
+            <input type="color" id="shapeColorPicker" value="#000000">
+          </div>
+          <div class="shape-control-row">
+            <label>Size:</label>
+            <input type="number" id="shapeSizeInput" min="20" max="300" value="100">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
