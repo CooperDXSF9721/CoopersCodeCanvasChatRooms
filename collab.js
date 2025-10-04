@@ -15,8 +15,6 @@ const db = firebase.database();
 let currentRoomId = null;
 let linesRef = null;
 let textsRef = null;
-let roomExistenceRef = null;
-let isDeleting = false;
 
 function generateRoomCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -28,7 +26,7 @@ function generateRoomCode() {
 }
 
 async function joinRoom(roomId, password = null) {
-  // Check if room exists (skip for public)
+  // Check if room has password protection (skip for public)
   if (roomId !== 'public') {
     const roomRef = db.ref(`rooms/${roomId}`);
     const roomSnapshot = await roomRef.once('value');
@@ -54,7 +52,7 @@ async function joinRoom(roomId, password = null) {
     const passwordRef = db.ref(`rooms/${roomId}/password`);
     const passwordSnapshot = await passwordRef.once('value');
     const storedPassword = passwordSnapshot.val();
-    
+
     if (storedPassword) {
       // Room is password protected
       if (password === null) {
@@ -66,7 +64,7 @@ async function joinRoom(roomId, password = null) {
         }
         password = inputPassword;
       }
-      
+
       if (password !== storedPassword) {
         alert('Incorrect Passkey');
         joinRoom('public');
@@ -74,23 +72,21 @@ async function joinRoom(roomId, password = null) {
       }
     }
   }
-  
+
   if (linesRef) linesRef.off();
   if (textsRef) textsRef.off();
-  if (roomExistenceRef) roomExistenceRef.off();
-  
+
   currentRoomId = roomId;
   linesRef = db.ref(`rooms/${roomId}/lines`);
   textsRef = db.ref(`rooms/${roomId}/texts`);
-  
+
   linesCache.length = 0;
   textsCache.clear();
   drawAll();
-  
+
   setupFirebaseListeners();
-  setupRoomExistenceListener();
   updateRoomIndicator();
-  
+
   window.location.hash = roomId;
 }
 
@@ -100,7 +96,7 @@ function updateRoomIndicator() {
   const roomCodeDisplay = document.getElementById('roomCodeDisplay');
   const deleteBtn = document.getElementById('deleteRoomBtn');
   const copyBtn = document.getElementById('copyRoomBtn');
-  
+
   if (indicator && currentRoomId) {
     if (currentRoomId === 'public') {
       indicator.textContent = 'Public Canvas';
@@ -437,12 +433,12 @@ document.addEventListener('click', (e) => {
 document.getElementById('createRoomBtn')?.addEventListener('click', async () => {
   const roomId = generateRoomCode();
   const password = prompt('Set a passkey for this room (optional - leave blank for no password):');
-  
+
   if (password && password.trim()) {
     // Save password to Firebase
     await db.ref(`rooms/${roomId}/password`).set(password.trim());
   }
-  
+
   joinRoom(roomId);
   roomDropdown.classList.remove('show');
 });
