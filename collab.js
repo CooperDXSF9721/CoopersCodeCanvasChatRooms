@@ -16,7 +16,6 @@ let currentRoomId = null;
 let linesRef = null;
 let textsRef = null;
 let roomDeletedRef = null;
-let shapesRef = null;
 
 function generateRoomCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -86,16 +85,13 @@ async function joinRoom(roomId, password = null) {
   if (linesRef) linesRef.off();
   if (textsRef) textsRef.off();
   if (roomDeletedRef) roomDeletedRef.off();
-  if (shapesRef) shapesRef.off();
 
   currentRoomId = roomId;
   linesRef = db.ref(`rooms/${roomId}/lines`);
   textsRef = db.ref(`rooms/${roomId}/texts`);
-  shapesRef = db.ref(`rooms/${roomId}/shapes`);
 
   linesCache.length = 0;
   textsCache.clear();
-  shapesCache.clear();
   drawAll();
 
   setupFirebaseListeners();
@@ -194,46 +190,16 @@ function setupFirebaseListeners() {
     textsCache.delete(key);
     drawAll();
   });
-
-  shapesRef.on('child_added', snapshot => {
-    const key = snapshot.key;
-    const val = snapshot.val();
-    shapesCache.set(key, val);
-    drawAll();
-  });
-
-  shapesRef.on('child_removed', snapshot => {
-    const key = snapshot.key;
-    shapesCache.delete(key);
-    drawAll();
-  });
 }
 
 // ==================== Canvas Setup ====================
-let canvas, ctx;
+const canvas = document.getElementById('drawCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
 const linesCache = [];
 const textsCache = new Map();
-const shapesCache = new Map();
-
-function initCanvas() {
-  canvas = document.getElementById('drawCanvas');
-  if (!canvas) {
-    console.error('Canvas element not found!');
-    return;
-  }
-  ctx = canvas.getContext('2d');
-  
-  // Force full screen
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  canvas.style.width = '100vw';
-  canvas.style.height = '100vh';
-  canvas.style.position = 'absolute';
-  canvas.style.top = '0';
-  canvas.style.left = '0';
-  
-  console.log('Canvas initialized:', canvas.width, 'x', canvas.height);
-}
 
 function drawAll() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -253,13 +219,6 @@ function drawAll() {
     });
   });
   ctx.globalCompositeOperation = 'source-over';
-  
-  // Draw shapes
-  shapesCache.forEach(shape => {
-    drawShape(shape);
-  });
-  
-  // Draw text
   ctx.textBaseline = 'top';
   textsCache.forEach(obj => {
     const size = obj.size || 40;
@@ -309,100 +268,6 @@ function drawLineSmooth(x0, y0, x1, y1, color = brushColor, width = brushSize, e
   }
   ctx.globalCompositeOperation = 'source-over';
   return points;
-}
-
-// ==================== Shape Drawing ====================
-function drawShape(shape) {
-  const { type, x, y, size, color, hollow } = shape;
-  
-  ctx.save();
-  ctx.translate(x, y);
-  
-  if (hollow) {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 3;
-  } else {
-    ctx.fillStyle = color;
-  }
-  
-  ctx.beginPath();
-  
-  switch(type) {
-    case 'circle':
-      ctx.arc(0, 0, size / 2, 0, Math.PI * 2);
-      break;
-      
-    case 'square':
-      const half = size / 2;
-      ctx.rect(-half, -half, size, size);
-      break;
-      
-    case 'triangle':
-      const h = size * Math.sqrt(3) / 2;
-      ctx.moveTo(0, -h / 2);
-      ctx.lineTo(-size / 2, h / 2);
-      ctx.lineTo(size / 2, h / 2);
-      ctx.closePath();
-      break;
-      
-    case 'star':
-      const spikes = 5;
-      const outerRadius = size / 2;
-      const innerRadius = size / 4;
-      for (let i = 0; i < spikes * 2; i++) {
-        const radius = i % 2 === 0 ? outerRadius : innerRadius;
-        const angle = (i * Math.PI) / spikes - Math.PI / 2;
-        const px = radius * Math.cos(angle);
-        const py = radius * Math.sin(angle);
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      }
-      ctx.closePath();
-      break;
-      
-    case 'heart':
-      const w = size / 2;
-      ctx.moveTo(0, w / 4);
-      ctx.bezierCurveTo(-w, -w / 2, -w, -w, -w / 2, -w);
-      ctx.bezierCurveTo(0, -w, 0, -w / 2, 0, w / 4);
-      ctx.bezierCurveTo(0, -w / 2, 0, -w, w / 2, -w);
-      ctx.bezierCurveTo(w, -w, w, -w / 2, 0, w / 4);
-      break;
-      
-    case 'hexagon':
-      for (let i = 0; i < 6; i++) {
-        const angle = (Math.PI / 3) * i;
-        const px = (size / 2) * Math.cos(angle);
-        const py = (size / 2) * Math.sin(angle);
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      }
-      ctx.closePath();
-      break;
-      
-    case 'flower':
-      const petals = 6;
-      const petalRadius = size / 3;
-      for (let i = 0; i < petals; i++) {
-        const angle = (i * 2 * Math.PI) / petals;
-        const cx = (size / 4) * Math.cos(angle);
-        const cy = (size / 4) * Math.sin(angle);
-        ctx.moveTo(cx, cy);
-        ctx.arc(cx, cy, petalRadius, 0, Math.PI * 2);
-      }
-      // Center circle
-      ctx.moveTo(size / 8, 0);
-      ctx.arc(0, 0, size / 8, 0, Math.PI * 2);
-      break;
-  }
-  
-  if (hollow) {
-    ctx.stroke();
-  } else {
-    ctx.fill();
-  }
-  
-  ctx.restore();
 }
 
 // ==================== Pointer Handling & Text Dragging ====================
@@ -644,38 +509,11 @@ document.getElementById('deleteRoomBtn')?.addEventListener('click', async () => 
   }
 });
 
-// ==================== Initialize ====================
-window.addEventListener('load', () => {
-  // Initialize canvas first
-  initCanvas();
-  
-  // Setup admin
-  setupAdmin();
-  
-  // Join room
-  const hashRoom = window.location.hash.substring(1);
-  if (hashRoom) {
-    joinRoom(hashRoom);
-  } else {
-    joinRoom('public');
-  }
-  
-  // Setup shape menu
-  setupShapeMenu();
-});
-
 // ==================== Admin ====================
-function setupAdmin() {
-  const clearBtn = document.getElementById('clearBtn');
-  if (!clearBtn) {
-    console.error('Clear button not found');
-    return;
-  }
-  
+(function setupAdmin() {
   const adminKey = "cooper";
-  const userInput = prompt("Enter admin key to see admin tools (or cancel):");
-  
-  if (userInput === adminKey) {
+  const isAdmin = prompt("Enter admin key to see admin tools (or cancel):") === adminKey;
+  if (isAdmin) {
     clearBtn.style.display = 'inline-block';
     clearBtn.addEventListener('click', async () => {
       if (!currentRoomId) return;
@@ -689,63 +527,14 @@ function setupAdmin() {
       }
     });
   }
-}
+})();
 
-// ==================== Shape Menu ====================
-function setupShapeMenu() {
-  const shapeMenuBtn = document.getElementById('shapeMenuBtn');
-  const shapeMenu = document.getElementById('shapeMenu');
-  const shapeButtons = document.querySelectorAll('.shape-btn');
-  const shapeColorPicker = document.getElementById('shapeColorPicker');
-  const shapeSizeInput = document.getElementById('shapeSizeInput');
-  
-  let selectedShapeType = null;
-  let selectedHollow = false;
-  
-  shapeMenuBtn?.addEventListener('click', () => {
-    shapeMenu.classList.toggle('show');
-  });
-  
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.shape-menu-container')) {
-      shapeMenu?.classList.remove('show');
-    }
-  });
-  
-  shapeButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const shapeType = btn.dataset.shape;
-      const hollow = btn.dataset.hollow === 'true';
-      
-      selectedShapeType = shapeType;
-      selectedHollow = hollow;
-      
-      // Visual feedback
-      shapeButtons.forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-    });
-  });
-  
-  canvas.addEventListener('click', (e) => {
-    if (selectedShapeType && !drawing && !draggingTextKey) {
-      const shapeColor = shapeColorPicker.value;
-      const shapeSize = parseInt(shapeSizeInput.value) || 100;
-      
-      const shapeData = {
-        type: selectedShapeType,
-        x: e.clientX,
-        y: e.clientY,
-        size: shapeSize,
-        color: shapeColor,
-        hollow: selectedHollow
-      };
-      
-      shapesRef.push(shapeData);
-      
-      // Deselect shape after placing
-      selectedShapeType = null;
-      selectedHollow = false;
-      shapeButtons.forEach(b => b.classList.remove('selected'));
-    }
-  });
-}
+// ==================== Initialize ====================
+window.addEventListener('load', () => {
+  const hashRoom = window.location.hash.substring(1);
+  if (hashRoom) {
+    joinRoom(hashRoom);
+  } else {
+    joinRoom('public');
+  }
+});
