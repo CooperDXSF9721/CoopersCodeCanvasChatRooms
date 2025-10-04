@@ -266,6 +266,15 @@
       background: hsl(217, 20%, 28%);
     }
 
+    .dropdown-section button.destructive {
+      background: hsl(0, 84%, 48%);
+      color: hsl(0, 0%, 100%);
+    }
+
+    .dropdown-section button.destructive:hover {
+      background: hsl(0, 84%, 40%);
+    }
+
     .divider {
       height: 1px;
       background: hsl(217, 22%, 20%);
@@ -319,6 +328,7 @@
         <h3>Current Room</h3>
         <div id="roomCodeDisplay">PUBLIC</div>
         <button id="copyRoomBtn" class="secondary" data-testid="button-copy-room">Copy Room Code</button>
+        <button id="deleteRoomBtn" class="destructive" data-testid="button-delete-room">Delete Room</button>
         <button id="goPublicBtn" class="secondary" data-testid="button-go-public">Go to Public Canvas</button>
       </div>
       <div class="divider"></div>
